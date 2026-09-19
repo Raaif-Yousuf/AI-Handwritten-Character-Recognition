@@ -1,117 +1,41 @@
-# AI Handwritten Character Recognition (Tensorflow)
+# Handwritten Character Recognition
 
-This repository contains the Python code for a simple AI model that can recognize handwritten digits (0-9). The model is built using the TensorFlow and Keras libraries.
+I built this to read handwritten digits and letters from image files with a small Keras CNN. It started as a tutorial MLP on MNIST. Now it trains reproducibly on MNIST and EMNIST, and a preprocessing step makes images from outside the dataset look like the training data.
 
-**This was a guide project.**
+![Raw input, model input and top-3 predictions for the sample images](docs/pipeline.png)
 
-## Overview
+This figure shows the EMNIST balanced model (47 classes) on the images in `samples/`. It gets 7 of 9 right. It reads the plain `1` as `I` and the `6` as `G`. The digits-only MNIST model gets all five digits right.
 
-This project demonstrates a basic implementation of a feedforward neural network to classify handwritten digits from the MNIST dataset. It includes:
+## How it works
 
-* A Python script `main.py` that loads the MNIST dataset, preprocesses the images, defines and trains a neural network model, evaluates its performance, saves the trained model, and makes predictions on sample images.
+- Preprocessing composites transparent PNGs over white and inverts dark-on-light images. It then crops to the ink, scales the longer side to 20 px and centers it by center of mass in a 28x28 frame, the same way MNIST was made.
+- EMNIST is read straight from the official NIST archive. Its transposed images are flipped back upright, and each label is mapped to its character.
+- The model has two conv blocks (32 and 64 filters) with batch norm and dropout, then a dense layer. Rotation, shift and zoom augmentation runs during training only. The original tutorial MLP is still available with `--arch mlp` as a baseline.
+- Training fixes seeds and uses deterministic ops. It holds out 10% of the training set for early stopping and scores the official test set once. Each run writes the model, a JSON file with the metrics, a confusion matrix and training curves to `reports/`.
 
-## Getting Started
+## Results
 
-To get started with this project, you will need to have Python and the necessary libraries installed on your system.
+I trained every model on CPU (seed 42, up to 15 epochs) and scored each one on its dataset's official test split:
 
-### Prerequisites
+| Dataset | Classes | Original MLP | CNN |
+|---|---:|---:|---:|
+| MNIST | 10 | 98.09% | 99.39% |
+| EMNIST balanced | 47 | 83.84% | 88.46% |
+| EMNIST letters | 26 | not trained | 94.16% |
 
-* **Python 3.x:** Download and install the latest version of Python from [https://www.python.org/downloads/](https://www.python.org/downloads/)
-* **TensorFlow:** Install TensorFlow using pip:
-    ```bash
-    pip install tensorflow
-    ```
-* **NumPy:** Install NumPy using pip:
-    ```bash
-    pip install numpy
-    ```
-* **OpenCV (cv2):** Install OpenCV using pip:
-    ```bash
-    pip install opencv-python
-    ```
-* **Matplotlib:** Install Matplotlib using pip:
-    ```bash
-    pip install matplotlib
-    ```
+Most errors on EMNIST balanced come from pairs that are ambiguous in handwriting: `O`/`0`, `L`/`1`, `I`/`1` and `F`/`f`. See the [confusion matrix](reports/emnist_balanced_cnn_confusion.png). The repo includes the MNIST and EMNIST balanced models. The other trained models are attached to the [v1.0.0 release](https://github.com/Raaif-Yousuf/AI-Handwritten-Character-Recognition/releases/tag/v1.0.0).
 
-### Installation
+## Run it
 
-1.  **Clone the repository:**
-    ```bash
-    git clone <ttps://github.com/Ra-Verse/AI-Handwritten-Character-Recognition/tree/main>
-    cd AI-Handwritten-Character-Recognition-Tensorflow
-    ```
-    
-2.  **(Optional) Create a virtual environment:** It is recommended to create a virtual environment to isolate the project dependencies.
-    ```bash
-    python -m venv venv
-    source venv/bin/activate  # On Linux/macOS
-    venv\Scripts\activate  # On Windows
-    ```
+```bash
+pip install -r requirements.txt
+python -m hcr.predict samples/emnist_test_upper_A.png          # EMNIST balanced model
+python -m hcr.predict samples/digit_*.png --model models/mnist_cnn.keras
+python -m hcr.train --dataset emnist-balanced --arch cnn --epochs 15
+```
 
-3.  **Install dependencies:**
-    ```bash
-    pip install tensorflow numpy opencv-python matplotlib
-    ```
+The first EMNIST training run downloads the dataset (about 536 MB) to `~/.cache/hcr`.
 
-4.  **Save the provided Python code as `main.py` in the project directory.**
+Tests use synthetic data only. Run `pip install -r requirements-dev.txt && pytest` (29 tests); CI runs them on every pull request.
 
-5.  **Prepare sample images:** To test the prediction functionality, you will need to create a few PNG image files named `1.png`, `2.png`, `3.png`, `4.png`, and `5.png` in the same directory as `main.py`. These images should contain single handwritten digits on a white background (or a background that will be inverted to white).
-
-## Usage
-
-1.  **Run the `main.py` script:**
-    ```bash
-    python main.py
-    ```
-
-    This script will:
-    * Load and preprocess the MNIST dataset.
-    * Define and train a simple neural network model.
-    * Evaluate the model's accuracy and loss on the test dataset.
-    * Save the trained model as `digits.model.keras`.
-    * Load the sample images (`1.png` to `5.png`), preprocess them, make predictions using the trained model, and display the predicted digit along with the image.
-
-## Model Architecture
-
-The model is a sequential neural network with the following layers:
-
-1.  **Flatten:** Converts the 28x28 pixel input images into a 784-dimensional vector.
-2.  **Dense (128 units, ReLU activation):** A fully connected layer with 128 neurons and the Rectified Linear Unit (ReLU) activation function.
-3.  **Dense (128 units, ReLU activation):** Another fully connected layer with 128 neurons and ReLU activation.
-4.  **Dense (10 units, Softmax activation):** The output layer with 10 neurons (one for each digit 0-9) and the Softmax activation function, which outputs the probability distribution over the classes.
-
-The model is compiled using the Adam optimizer, sparse categorical cross-entropy loss (suitable for integer labels), and accuracy as the evaluation metric.
-
-## Dataset
-
-This project utilizes the **MNIST** dataset, which consists of 70,000 grayscale images of handwritten digits (0-9). The dataset is automatically downloaded and loaded using `tf.keras.datasets.mnist`.
-
-## Saving the Model
-
-The trained model is saved to a file named `digits.model.keras` using `model.save('digits.model.keras')`. This allows you to load and reuse the trained model without retraining it.
-
-## Making Predictions on Custom Images
-
-The script includes a loop that reads images named `1.png` through `5.png`, preprocesses them (inverting the colors and normalizing the pixel values), and uses the trained model to predict the digit in each image. The predicted digit and the corresponding image are then displayed using Matplotlib.
-
-**Note:** Ensure that the sample PNG images have a format that OpenCV can read and contain a single, clear handwritten digit. The preprocessing steps in the code assume the digit is initially dark on a light background.
-
-## Contributing
-
-Contributions to this project are welcome! If you find any bugs or have suggestions for improvements, please feel free to open an issue or submit a pull request.
-
-## License
-
-MIT License, Apache License 2.0
-
-## Acknowledgements
-
-This project was a guided project by NuralNine
-
-* TensorFlow library: [https://www.tensorflow.org/](https://www.tensorflow.org/)
-* Keras API: [https://keras.io/](https://keras.io/)
-* MNIST dataset: Yann LeCun and Corinna Cortes, "MNIST handwritten digit database," AT&T Labs [Online]. Available: http://yann.lecun.com/exdb/mnist/
-* NumPy library: [https://numpy.org/](https://numpy.org/)
-* OpenCV library: [https://opencv.org/](https://opencv.org/)
-* Matplotlib library: [https://matplotlib.org/](https://matplotlib.org/)
+MIT licensed. Based originally on NeuralNine's handwritten digit recognition tutorial.
