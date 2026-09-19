@@ -11,7 +11,7 @@ This figure shows the EMNIST balanced model (47 classes) on the images in `sampl
 - Preprocessing composites transparent PNGs over white and inverts dark-on-light images. It then crops to the ink, scales the longer side to 20 px and centers it by center of mass in a 28x28 frame, the same way MNIST was made.
 - EMNIST is read straight from the official NIST archive. Its transposed images are flipped back upright, and each label is mapped to its character.
 - The model has two conv blocks (32 and 64 filters) with batch norm and dropout, then a dense layer. Rotation, shift and zoom augmentation runs during training only. The original tutorial MLP is still available with `--arch mlp` as a baseline.
-- Training fixes seeds and uses deterministic ops. It holds out 10% of the training set for early stopping and scores the official test set once. Each run writes the model, a JSON file with the metrics, a confusion matrix and training curves to `reports/`.
+- Training fixes seeds and uses deterministic ops. It holds out 10% of the training set for early stopping and scores the official test set once. Each run saves the model and a JSON file of its metrics to `models/`, and a confusion matrix and training curves to `reports/`.
 
 ## Results
 
