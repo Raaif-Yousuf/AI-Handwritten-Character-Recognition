@@ -26,26 +26,34 @@ def _prediction_text(results: list[tuple[str, float]]) -> str:
 
 
 def build_figure(images: list[str], predictor: Predictor):
-    fig, axes = plt.subplots(len(images), 3, figsize=(6, 2.2 * len(images)), squeeze=False)
+    """One column per image: raw input, 28x28 model input, top-3 predictions."""
+    n = len(images)
+    fig, axes = plt.subplots(
+        3, n, figsize=(1.7 * n, 4.4), squeeze=False, gridspec_kw={"height_ratios": [1, 1, 0.5]}
+    )
 
-    for row, image_path in enumerate(images):
+    for col, image_path in enumerate(images):
         gray = load_image(image_path)
         model_input = to_model_input(gray)
         results = predictor.predict(gray, top_k=3)
 
-        ax_raw, ax_input, ax_text = axes[row]
+        ax_raw, ax_input, ax_text = axes[:, col]
 
         ax_raw.imshow(gray, cmap="gray")
-        ax_raw.set_title(Path(image_path).name)
+        ax_raw.set_title(Path(image_path).stem, fontsize=7)
         ax_raw.axis("off")
 
         ax_input.imshow(model_input, cmap="gray")
-        ax_input.set_title("model input")
         ax_input.axis("off")
 
         ax_text.axis("off")
-        ax_text.text(0.0, 0.5, _prediction_text(results), va="center", ha="left", fontsize=11)
+        ax_text.text(0.5, 0.95, _prediction_text(results), va="top", ha="center", fontsize=9)
 
+    axes[0, 0].text(-0.15, 0.5, "raw", transform=axes[0, 0].transAxes, rotation=90, va="center")
+    axes[1, 0].text(
+        -0.15, 0.5, "model input", transform=axes[1, 0].transAxes, rotation=90, va="center"
+    )
+    axes[2, 0].text(-0.15, 0.7, "top-3", transform=axes[2, 0].transAxes, rotation=90, va="center")
     fig.tight_layout()
     return fig
 
